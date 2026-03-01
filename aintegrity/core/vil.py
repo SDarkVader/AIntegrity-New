@@ -95,7 +95,7 @@ class VerifiableInteractionLedger:
                 format=serialization.PublicFormat.Raw
             )
             self.key_id = f"did:key:{base64.b85encode(raw_bytes).decode('ascii')[:32]}"
-        except ImportError:
+        except BaseException:
             self.use_crypto = False
             print("Warning: cryptography library not available, signatures disabled")
 
