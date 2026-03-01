@@ -129,8 +129,8 @@ class TestSessionStatus:
         core.process_turn("C", "D")
         status = core.get_session_status()
         assert status["turn_count"] == 2
-        # Each turn produces: user_input + model_output + trust_grading = 3 events
-        assert status["event_count"] == 6
+        # Each turn produces: user_input + model_output + pli_analysis + trust_grading = 4 events
+        assert status["event_count"] == 8
 
 
 # ── ORCH-05: Session sealing ─────────────────────────────────────────────
@@ -191,6 +191,7 @@ class TestAuditReport:
         assert "summary" in report
         assert "trust_history" in report
         assert "integrity_check" in report
+        assert "pli_findings" in report
 
     def test_report_summary_fields(self, core):
         core.process_turn("Q", "A")
@@ -231,7 +232,7 @@ class TestMultiTurnFidelity:
         assert core.turn_count == 10
         integrity = core.verify_integrity()
         assert integrity["valid"] is True
-        assert integrity["event_count"] == 30  # 10 turns * 3 events each
+        assert integrity["event_count"] == 40  # 10 turns * 4 events each
 
     def test_event_parent_chaining(self, core):
         """Model output events should reference their user input parents."""
@@ -273,14 +274,14 @@ class TestAuditLogExport:
         exported = core.export_audit_log(format="json")
         data = json.loads(exported)
         assert isinstance(data, list)
-        assert len(data) == 3  # user_input + model_output + trust_grading
+        assert len(data) == 4  # user_input + model_output + pli_analysis + trust_grading
 
     def test_export_pretty_format(self, core):
         core.process_turn("Q", "A")
         exported = core.export_audit_log(format="pretty")
         assert "\n" in exported  # Pretty format has newlines
         data = json.loads(exported)
-        assert len(data) == 3
+        assert len(data) == 4  # user_input + model_output + pli_analysis + trust_grading
 
 
 # ── ORCH-12: Multimodal disabled ─────────────────────────────────────────

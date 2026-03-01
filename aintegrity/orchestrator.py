@@ -23,6 +23,8 @@ from .core.vil import VerifiableInteractionLedger
 from .modules.trust_grader import TrustGradingEngineV4
 from .modules.threat_monitor import AdversarialThreatMonitor
 from .modules.multimodal_verifier import VisualConsistencyVerifier, MediaIntegrityAssessor
+from .modules.pli_analyzer import PLIAnalyzer
+from .modules.llm_adapter import LLMAdapter
 
 
 class AIntegrityCoreV4:
@@ -42,7 +44,8 @@ class AIntegrityCoreV4:
         session_id: Optional[str] = None,
         agent_id: str = "default_agent",
         baseline_data: Optional[List[str]] = None,
-        enable_multimodal: bool = True
+        enable_multimodal: bool = True,
+        llm_adapter: Optional[LLMAdapter] = None,
     ):
         """
         Initialize the AIntegrity Core.
@@ -52,6 +55,7 @@ class AIntegrityCoreV4:
             agent_id: Identifier for the AI agent being audited
             baseline_data: Baseline text samples for drift detection
             enable_multimodal: Whether to enable multimodal verification
+            llm_adapter: Optional LLM adapter for live model interrogation
         """
         self.session_id = session_id or str(uuid.uuid4())
         self.agent_id = agent_id
@@ -62,6 +66,10 @@ class AIntegrityCoreV4:
         # Initialize analysis modules
         self.trust_grader = TrustGradingEngineV4(agent_id=agent_id)
         self.threat_monitor = AdversarialThreatMonitor(baseline_data=baseline_data or [])
+        self.pli_analyzer = PLIAnalyzer()
+
+        # Optional LLM adapter for live interrogation
+        self.llm_adapter = llm_adapter
 
         # Multimodal verifiers (optional)
         self.enable_multimodal = enable_multimodal
@@ -216,9 +224,21 @@ class AIntegrityCoreV4:
         # Log model output
         model_event = self.log_model_output(model_text, user_event.event_id)
 
-        # Calculate trust score
+        # Run PLI logical consistency analysis
+        pli_result = self.pli_analyzer.analyze_turn(user_text, model_text)
+
+        # Log PLI analysis event
+        pli_event = AuditEvent(
+            event_type=EventType.LOGICAL_ANALYSIS,
+            actor_id="aintegrity",
+            analysis_payload=pli_result,
+            parent_event_id=model_event.event_id
+        )
+        self.vil.log_event(pli_event)
+
+        # Calculate trust score using real PLI consistency score
         analysis_results = {
-            "logical_analysis": {"consistency_score": 0.9},  # Placeholder
+            "logical_analysis": {"consistency_score": pli_result["consistency_score"]},
             "adversarial_threat": model_event.analysis_payload.get("threat_analysis", {})
         }
         trust_result = self.trust_grader.calculate_trust_score(analysis_results)
@@ -310,6 +330,48 @@ class AIntegrityCoreV4:
 
         return result
 
+    def interrogate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        parent_event_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a prompt to the attached LLM and audit the response.
+
+        Requires an ``llm_adapter`` to have been provided at init time.
+
+        Args:
+            prompt: The interrogation prompt
+            system_prompt: Optional system-level instruction
+            parent_event_id: Parent event ID for threading
+
+        Returns:
+            Turn result (same shape as process_turn) plus llm_response metadata
+        """
+        if self.llm_adapter is None:
+            raise RuntimeError(
+                "No LLM adapter configured. Pass llm_adapter= to __init__ "
+                "or use LLMAdapter.create() to build one."
+            )
+
+        response = self.llm_adapter.query(
+            prompt, system_prompt=system_prompt
+        )
+
+        turn_result = self.process_turn(
+            user_text=prompt,
+            model_text=response.text,
+            parent_event_id=parent_event_id,
+        )
+        turn_result["llm_response"] = {
+            "model": response.model,
+            "provider": response.provider,
+            "latency_ms": response.latency_ms,
+            "usage": response.usage,
+        }
+        return turn_result
+
     def get_session_status(self) -> Dict[str, Any]:
         """Get current session status."""
         return {
@@ -381,6 +443,8 @@ class AIntegrityCoreV4:
                 else:
                     evasion_count += 1
 
+        pli_summary = self.pli_analyzer.get_summary()
+
         return {
             "session_id": self.session_id,
             "agent_id": self.agent_id,
@@ -389,6 +453,9 @@ class AIntegrityCoreV4:
                 "total_events": len(self.vil.events),
                 "threat_alerts": threat_count,
                 "evasion_alerts": evasion_count,
+                "logical_contradictions": pli_summary["total_contradictions"],
+                "logical_evasions": pli_summary["total_evasions"],
+                "consistency_score": pli_summary["final_consistency_score"],
                 "final_trust_score": self.trust_grader.get_current_trust_score(),
                 "final_grade": self.trust_grader.get_grade(),
                 "chain_integrity": integrity["valid"]
@@ -400,5 +467,6 @@ class AIntegrityCoreV4:
                 }
                 for h in trust_history
             ],
+            "pli_findings": pli_summary,
             "integrity_check": integrity
         }

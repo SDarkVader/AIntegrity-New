@@ -53,6 +53,7 @@ DOMAINS = {
     "vil":          {"marker": "vil",          "prefix": "VIL",    "label": "Ledger Integrity"},
     "orchestrator": {"marker": "orchestrator", "prefix": "ORCH",   "label": "Orchestrator E2E"},
     "pli":          {"marker": "pli",          "prefix": "PLI",    "label": "PLI Engine"},
+    "llm":          {"marker": "llm",          "prefix": "LLM",    "label": "LLM Adapter"},
 }
 
 
