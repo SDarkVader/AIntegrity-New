@@ -66,10 +66,10 @@ class AIntegrityCoreV4:
         # Initialize analysis modules
         self.trust_grader = TrustGradingEngineV4(agent_id=agent_id)
         self.threat_monitor = AdversarialThreatMonitor(baseline_data=baseline_data or [])
-        self.pli_analyzer = PLIAnalyzer()
-
         # Optional LLM adapter for live interrogation
         self.llm_adapter = llm_adapter
+
+        self.pli_analyzer = PLIAnalyzer(llm_adapter=llm_adapter)
 
         # Multimodal verifiers (optional)
         self.enable_multimodal = enable_multimodal
