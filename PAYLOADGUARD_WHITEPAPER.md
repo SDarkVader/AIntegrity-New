@@ -270,6 +270,8 @@ python -m pytest payloadguard_test_suite.py -v
 
 PayloadGuard was built in a single afternoon on 19 April 2026, in direct response to a live incident. The tool that was supposed to help was the threat. The tool built to detect that threat now guards the repository it nearly destroyed.
 
+Its first live test was blocked by its own design — the initial CI configuration triggered on pushes to main as well as PRs, so the first legitimate merge was flagged as DESTRUCTIVE (exit code 2) because the commit adding PayloadGuard itself was a large changeset. The tool caught its own deployment as a destructive payload. The workflow was subsequently scoped to PR-only triggers, which is the correct gate position.
+
 ---
 
 ## License
