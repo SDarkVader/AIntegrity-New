@@ -132,6 +132,7 @@ Canary test: user="What is the opposite of light", ai="The opposite of light is 
 - [x] CLI audit runner with canary test
 - [x] 217-test evaluation suite (all passing)
 - [x] Epistemic Decay paper (v2 draft)
+- [x] README.md with full system architecture documentation
 
 ---
 

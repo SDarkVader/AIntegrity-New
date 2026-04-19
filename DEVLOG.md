@@ -55,6 +55,8 @@
 - Echo backend enables full L2 testing with no API credits
 - Canary orchestrator test checks PLI payload directly from VIL events (not overall trust score, since trust grading blends PLI at 0.25 weight with other components)
 
+7. **Added README.md** — Full system architecture documentation for the main repo. Covers all modules, scoring formulas, CLI usage, programmatic API, research context.
+
 ### What's next
 - Finalize Epistemic Decay paper for Alignment Forum submission
 - Integrate FailureModeRegistry (5 failure modes + regulatory mappings) from Base44 handoff
